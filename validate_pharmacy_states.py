@@ -27,6 +27,7 @@ import json
 from tqdm import tqdm
 import logging
 from datetime import datetime
+from dotenv import load_dotenv
 
 # Configuration
 CSV_FILENAME = "Mail Order Pharmacies by State Jul 31 2025.csv"
@@ -53,10 +54,15 @@ class PharmacyStateValidator:
         
     def setup_openai(self):
         """Set up OpenAI client with API key."""
+        # Load environment variables from .env file
+        load_dotenv()
+        
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
-            logger.error("OPENAI_API_KEY environment variable not set!")
-            logger.error("Please set it with: export OPENAI_API_KEY='your-key-here'")
+            logger.error("OPENAI_API_KEY not found!")
+            logger.error("Please set it using one of these methods:")
+            logger.error("1. Environment variable: export OPENAI_API_KEY='your-key-here'")
+            logger.error("2. Create .env file with: OPENAI_API_KEY=your-key-here")
             sys.exit(1)
         
         self.client = openai.OpenAI(api_key=api_key)
@@ -272,6 +278,10 @@ def main():
     """Main execution function."""
     logger.info("Starting Pharmacy States of Operation Validation")
     logger.info("=" * 50)
+    
+    # Load environment variables first
+    load_dotenv()
+    logger.info("Environment variables loaded from .env file (if present)")
     
     # Check if CSV file exists
     if not os.path.exists(CSV_FILENAME):

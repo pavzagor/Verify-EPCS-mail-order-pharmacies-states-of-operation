@@ -7,6 +7,7 @@ This script handles the complete workflow with error checking.
 import subprocess
 import sys
 import os
+from dotenv import load_dotenv
 
 def run_command(command, description):
     """Run a command and handle errors."""
@@ -35,10 +36,13 @@ def main():
     print("=" * 50)
     
     # Check if API key is set
+    load_dotenv()  # Load .env file if it exists
+    
     if not os.getenv('OPENAI_API_KEY'):
         print("❌ OPENAI_API_KEY not set!")
-        print("\nPlease set your OpenAI API key first:")
-        print("export OPENAI_API_KEY='your-key-here'")
+        print("\nPlease set your OpenAI API key using one of these methods:")
+        print("1. Environment variable: export OPENAI_API_KEY='your-key-here'")
+        print("2. Create .env file with: OPENAI_API_KEY=your-key-here")
         print("\nThen run this script again.")
         return 1
     

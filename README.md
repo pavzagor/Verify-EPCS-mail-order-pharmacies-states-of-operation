@@ -5,13 +5,28 @@ This script validates pharmacy states of operation using OpenAI's o3-deepresearc
 ## Setup Instructions
 
 ### 1. Install Dependencies
+
+Choose one of the following methods:
+
+#### Option A: Using UV (Recommended - Fast & Modern)
+```bash
+# Install UV if you haven't already
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies
+uv sync
+```
+
+#### Option B: Using pip (Traditional)
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 2. Set OpenAI API Key
+
 You need an OpenAI API key with access to the o3-deepresearch model.
 
+#### Method 1: Environment Variables
 **On macOS/Linux:**
 ```bash
 export OPENAI_API_KEY="your-openai-api-key-here"
@@ -22,6 +37,15 @@ export OPENAI_API_KEY="your-openai-api-key-here"
 set OPENAI_API_KEY=your-openai-api-key-here
 ```
 
+#### Method 2: .env File (Recommended)
+Create a `.env` file in the project directory:
+```bash
+# Create .env file
+echo "OPENAI_API_KEY=your-openai-api-key-here" > .env
+```
+
+The script will automatically load the API key from the `.env` file.
+
 ### 3. Prepare Your CSV File
 - Ensure your CSV file is named: `Mail Order Pharmacies by State Jul 31 2025.csv`
 - Or update the `CSV_FILENAME` variable in the script if using a different name
@@ -29,9 +53,34 @@ set OPENAI_API_KEY=your-openai-api-key-here
 
 ## Usage
 
-Simply run the script:
+### Quick Start
+
+#### Using UV:
 ```bash
+# Automated runner (recommended)
+uv run run_validation.py
+
+# Or run individual scripts
+uv run validate_pharmacy_states.py
+```
+
+#### Using pip/python:
+```bash
+# Automated runner (recommended)
+python run_validation.py
+
+# Or run individual scripts
 python validate_pharmacy_states.py
+```
+
+### Verification
+Test your setup before running validation:
+```bash
+# With UV
+uv run test_setup.py
+
+# With pip/python
+python test_setup.py
 ```
 
 ## What the Script Does

@@ -6,6 +6,7 @@ Run this before executing the main validation script.
 
 import sys
 import os
+from dotenv import load_dotenv
 
 def test_dependencies():
     """Test if all required dependencies are installed."""
@@ -38,10 +39,18 @@ def test_api_key():
     """Test if OpenAI API key is set."""
     print("\nTesting API key...")
     
+    # Load environment variables from .env file
+    load_dotenv()
+    
     api_key = os.getenv('OPENAI_API_KEY')
     if not api_key:
-        print("✗ OPENAI_API_KEY environment variable not set")
-        print("Please set it with: export OPENAI_API_KEY='your-key-here'")
+        env_file_exists = os.path.exists('.env')
+        print("✗ OPENAI_API_KEY not found")
+        print("Please set it using one of these methods:")
+        print("1. Environment variable: export OPENAI_API_KEY='your-key-here'")
+        print("2. Create .env file with: OPENAI_API_KEY=your-key-here")
+        if env_file_exists:
+            print("   (.env file exists but doesn't contain OPENAI_API_KEY)")
         return False
     
     if len(api_key) < 20:

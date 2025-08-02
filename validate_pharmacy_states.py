@@ -39,9 +39,10 @@ BATCH_SIZE = int(os.getenv('BATCH_SIZE', '30'))
 RATE_LIMIT_DELAY = int(os.getenv('RATE_LIMIT_DELAY', '2'))  # seconds between API calls
 
 # Model Configuration - Set your preferred model
-# o3-deep-research: Best quality but requires Verified Organization status ($10-40/1M tokens)
-# gpt-4o: Good alternative, more accessible ($5/1M input, $15/1M output tokens)
-# gpt-4.1: Another good option for analysis tasks
+# o3-deep-research: Best quality with web search, requires Verified Organization ($10-40/1M + $10/1K searches)  
+# o4-mini-deep-research: Cheaper deep research option ($2-8/1M + $10/1K searches)
+# gpt-4o: Good alternative, more accessible ($5-15/1M + $25/1K searches)
+# gpt-4.1: Basic analytical capabilities
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'o3-deep-research')  # Can override via .env file
 
 # Set up logging
@@ -104,13 +105,16 @@ class PharmacyStateValidator:
 
 Your task is to verify if the listed "states of operation" for each mail-order pharmacy are accurate based on current regulatory information, licensing requirements, and known operational status.
 
-For each pharmacy, analyze:
-1. Current licensing status in claimed states
-2. Regulatory compliance for mail-order operations
-3. Any known restrictions or suspensions
-4. Cross-reference with known pharmacy chains and their actual operational scope
+CRITICAL: Use web search to find current, authoritative information about each pharmacy's licensing and operational status.
 
-IMPORTANT: Base your analysis on factual regulatory information, not assumptions.
+For each pharmacy, search and analyze:
+1. **Current licensing databases**: Search state pharmacy board websites and licensing databases
+2. **Regulatory compliance**: Check for current mail-order pharmacy licenses in claimed states  
+3. **Company websites**: Verify operational scope on official pharmacy websites
+4. **Recent regulatory changes**: Look for any recent licensing updates or restrictions
+5. **Cross-reference sources**: Compare multiple authoritative sources for accuracy
+
+IMPORTANT: Base your analysis on factual, up-to-date regulatory information found through web search, not assumptions or outdated knowledge.
 
 Pharmacies to validate:
 """

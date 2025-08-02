@@ -24,24 +24,12 @@ pip install -r requirements.txt
 
 ### 2. Set OpenAI API Key
 
-You need an OpenAI API key with access to the o3-deep-research model.
+You need an OpenAI API key with access to the **o3-deep-research model with web search capabilities**.
 
-**⚠️ IMPORTANT ACCESS REQUIREMENTS:**
-- **Verified Organization Status**: Your OpenAI organization must have "Verified Organization" status
-- **ID Verification**: Requires government ID verification through a third-party service  
-- **Higher Tier**: Not all API keys have access to o3 models
-- **Expensive**: ~$10-40/1M tokens (each batch of 30 pharmacies may cost $20-40+)
-
-**To get access:**
-1. Go to your OpenAI Platform dashboard
-2. Navigate to Organization Settings → Verification
-3. Complete the ID verification process
-4. Wait for approval (may take time)
 
 **Alternative Models (if you don't have o3-deep-research access):**
-- **gpt-4o**: Good quality, more accessible ($5/1M input, $15/1M output)
-- **gpt-4.1**: Solid analytical capabilities
-- Set in your .env file: `OPENAI_MODEL=gpt-4o`
+- **o4-mini-deep-research**: Cheaper deep research option ($2/1M input, $8/1M output + $10/1K web searches)
+- Set in your .env file: `OPENAI_MODEL=o3-deep-research`
 
 #### Method 1: Environment Variables
 **On macOS/Linux:**
@@ -104,8 +92,12 @@ python test_setup.py
 
 1. **Loads the CSV** and validates it has the required columns
 2. **Splits data into batches** of 30 pharmacies (configurable)
-3. **Uses OpenAI o3-deepresearch** to validate each pharmacy's states of operation
-4. **Creates a new CSV** with the original data plus validation results
+3. **Uses OpenAI o3-deep-research with web search** to validate each pharmacy's states of operation
+   - Searches current pharmacy licensing databases
+   - Cross-references regulatory compliance information
+   - Verifies against real-time state licensing requirements
+4. **Saves progress after each batch** - no lost work if interrupted
+5. **Creates a new CSV** with the original data plus validation results
 
 ## Output
 

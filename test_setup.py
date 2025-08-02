@@ -58,6 +58,15 @@ def test_api_key():
         return False
     
     print("✓ OPENAI_API_KEY is set")
+    
+    # Check model configuration
+    model = os.getenv('OPENAI_MODEL', 'o3-deep-research')
+    print(f"✓ Configured model: {model}")
+    
+    if model == 'o3-deep-research':
+        print("⚠️  Note: o3-deep-research requires Verified Organization status")
+        print("   If you get access errors, try setting OPENAI_MODEL=gpt-4o in .env")
+    
     return True
 
 def test_csv_file():

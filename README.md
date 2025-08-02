@@ -24,7 +24,24 @@ pip install -r requirements.txt
 
 ### 2. Set OpenAI API Key
 
-You need an OpenAI API key with access to the o3-deepresearch model.
+You need an OpenAI API key with access to the o3-deep-research model.
+
+**⚠️ IMPORTANT ACCESS REQUIREMENTS:**
+- **Verified Organization Status**: Your OpenAI organization must have "Verified Organization" status
+- **ID Verification**: Requires government ID verification through a third-party service  
+- **Higher Tier**: Not all API keys have access to o3 models
+- **Expensive**: ~$10-40/1M tokens (each batch of 30 pharmacies may cost $20-40+)
+
+**To get access:**
+1. Go to your OpenAI Platform dashboard
+2. Navigate to Organization Settings → Verification
+3. Complete the ID verification process
+4. Wait for approval (may take time)
+
+**Alternative Models (if you don't have o3-deep-research access):**
+- **gpt-4o**: Good quality, more accessible ($5/1M input, $15/1M output)
+- **gpt-4.1**: Solid analytical capabilities
+- Set in your .env file: `OPENAI_MODEL=gpt-4o`
 
 #### Method 1: Environment Variables
 **On macOS/Linux:**

@@ -35,6 +35,12 @@ OUTPUT_FILENAME = f"validated_pharmacies_{datetime.now().strftime('%Y%m%d_%H%M%S
 BATCH_SIZE = 30
 RATE_LIMIT_DELAY = 2  # seconds between API calls
 
+# Model Configuration - Set your preferred model
+# o3-deep-research: Best quality but requires Verified Organization status ($10-40/1M tokens)
+# gpt-4o: Good alternative, more accessible ($5/1M input, $15/1M output tokens)
+# gpt-4.1: Another good option for analysis tasks
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'o3-deep-research')  # Can override via .env file
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -143,7 +149,7 @@ Only include "corrected_states" if the original information is incorrect. Use th
             logger.info(f"Validating batch of {len(batch)} pharmacies...")
             
             response = self.client.chat.completions.create(
-                model="o3-deepresearch",
+                model=OPENAI_MODEL,
                 messages=[
                     {
                         "role": "system", 

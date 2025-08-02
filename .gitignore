@@ -33,3 +33,9 @@ env/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Archive files
+*.zip
+*.tar.gz
+*.tar
+*.rar

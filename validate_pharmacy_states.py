@@ -29,11 +29,14 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Load environment variables first
+load_dotenv()
+
 # Configuration
 CSV_FILENAME = "Mail Order Pharmacies by State Jul 31 2025.csv"
 OUTPUT_FILENAME = f"validated_pharmacies_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-BATCH_SIZE = 30
-RATE_LIMIT_DELAY = 2  # seconds between API calls
+BATCH_SIZE = int(os.getenv('BATCH_SIZE', '30'))
+RATE_LIMIT_DELAY = int(os.getenv('RATE_LIMIT_DELAY', '2'))  # seconds between API calls
 
 # Model Configuration - Set your preferred model
 # o3-deep-research: Best quality but requires Verified Organization status ($10-40/1M tokens)
@@ -211,7 +214,7 @@ Only include "corrected_states" if the original information is incorrect. Use th
             ]
 
     def process_csv(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Process the entire CSV in batches."""
+        """Process the entire CSV in batches, saving after each successful batch."""
         
         # Add new columns
         df['Initial states of operation correct'] = None
@@ -234,6 +237,7 @@ Only include "corrected_states" if the original information is incorrect. Use th
             validations = self.validate_batch_with_openai(batch_pharmacies)
             
             # Apply results back to dataframe
+            batch_successful = False
             for validation in validations:
                 try:
                     pharmacy_idx = validation.get('pharmacy_index', 1) - 1  # Convert to 0-based
@@ -244,10 +248,19 @@ Only include "corrected_states" if the original information is incorrect. Use th
                         df.loc[actual_idx, 'States of operation by OpenAI deepresearch'] = validation.get('corrected_states', '')
                         df.loc[actual_idx, 'Validation confidence'] = validation.get('confidence', '')
                         df.loc[actual_idx, 'Validation reasoning'] = validation.get('reasoning', '')
+                        batch_successful = True
                         
                 except Exception as e:
                     logger.error(f"Error applying validation result: {str(e)}")
                     continue
+            
+            # Save progress after each successful batch
+            if batch_successful:
+                try:
+                    df.to_csv(OUTPUT_FILENAME, index=False)
+                    logger.info(f"Progress saved: Batch {batch_idx//BATCH_SIZE + 1}/{total_batches} completed")
+                except Exception as e:
+                    logger.error(f"Error saving progress: {str(e)}")
             
             # Rate limiting
             if batch_idx + BATCH_SIZE < len(df):  # Don't delay after the last batch
@@ -301,10 +314,10 @@ def main():
     # Load CSV
     df = validator.load_csv(CSV_FILENAME)
     
-    # Process CSV
+    # Process CSV (saves progress after each successful batch)
     validated_df = validator.process_csv(df)
     
-    # Save results
+    # Final save and summary
     validator.save_results(validated_df, OUTPUT_FILENAME)
     
     logger.info("Validation completed successfully!")

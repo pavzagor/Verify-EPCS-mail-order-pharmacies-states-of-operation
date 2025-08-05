@@ -38,20 +38,37 @@ def main():
     # Check if API key is set
     load_dotenv()  # Load .env file if it exists
     
-    if not os.getenv('OPENAI_API_KEY'):
+    # Check if appropriate API key is set based on provider
+    ai_provider = os.getenv('AI_PROVIDER', 'openai').lower()
+    
+    if ai_provider == 'openai' and not os.getenv('OPENAI_API_KEY'):
         print("❌ OPENAI_API_KEY not set!")
         print("\nPlease set your OpenAI API key using one of these methods:")
         print("1. Environment variable: export OPENAI_API_KEY='your-key-here'")
         print("2. Create .env file with: OPENAI_API_KEY=your-key-here")
         print("\nThen run this script again.")
         return 1
+    elif ai_provider == 'google' and not os.getenv('GOOGLE_API_KEY'):
+        print("❌ GOOGLE_API_KEY not set!")
+        print("\nPlease set your Google API key using one of these methods:")
+        print("1. Environment variable: export GOOGLE_API_KEY='your-key-here'")
+        print("2. Create .env file with: GOOGLE_API_KEY=your-key-here")
+        print("3. Get your API key from: https://aistudio.google.com/app/apikey")
+        print("\nThen run this script again.")
+        return 1
     
     # Install dependencies
     print("Installing dependencies...")
-    if not run_command("pip install -r requirements.txt", "Installing requirements"):
-        print("Failed to install dependencies. Please install manually:")
-        print("pip install openai pandas tqdm")
-        return 1
+    
+    # Try UV first (if available), then fall back to pip
+    uv_success = run_command("uv sync", "Installing requirements with UV")
+    if not uv_success:
+        print("UV not available, trying pip...")
+        if not run_command("pip install -r requirements.txt", "Installing requirements with pip"):
+            print("Failed to install dependencies. Please install manually:")
+            print("With UV: uv sync")
+            print("With pip: pip install openai google-genai pandas tqdm python-dotenv")
+            return 1
     
     # Run setup test
     print("\nRunning setup verification...")

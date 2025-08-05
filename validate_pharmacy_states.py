@@ -2,48 +2,57 @@
 """
 Pharmacy States of Operation Validation Script
 
-This script validates pharmacy states of operation using OpenAI's o3-deepresearch API.
+This script validates pharmacy states of operation using multiple AI providers:
+- OpenAI (o3-deepresearch, o4-mini-deep-research, gpt-4o, etc.)
+- Google Gemini (gemini-2.5-pro with search and URL grounding)
+
 It processes a CSV file in batches and adds validation results to new columns.
 
 Requirements:
-    pip install openai pandas tqdm
+    pip install openai google-genai pandas tqdm
 
 Usage:
-    1. Set your OpenAI API key as environment variable: export OPENAI_API_KEY="your-key-here"
-    2. Place your CSV file in the same directory as this script
-    3. Update CSV_FILENAME if your file has a different name
-    4. Run: python validate_pharmacy_states.py
+    1. Set your API key(s) as environment variables or in .env file
+    2. Configure AI_PROVIDER in .env (openai or google)
+    3. Place your CSV file in the same directory as this script
+    4. Update CSV_FILENAME if your file has a different name
+    5. Run: python validate_pharmacy_states.py
 
 Author: Generated for MEDvidi Pharmacy Verification
 """
 
 import pandas as pd
-import openai
 import os
 import sys
 import time
 from typing import List, Dict, Any
-import json
 from tqdm import tqdm
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
+from providers import get_ai_provider
 
 # Load environment variables first
 load_dotenv()
 
 # Configuration
-CSV_FILENAME = "Mail Order Pharmacies by State Jul 31 2025.csv"
+CSV_DIRECTORY = os.getenv('CSV_DIRECTORY', 'CSVs')
+CSV_FILENAME = os.path.join(CSV_DIRECTORY, os.getenv('CSV_FILENAME', 'Mail order active EPCS pharmacies w states - Master 31 Jul 2025.csv'))
 OUTPUT_FILENAME = f"validated_pharmacies_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
 BATCH_SIZE = int(os.getenv('BATCH_SIZE', '30'))
 RATE_LIMIT_DELAY = int(os.getenv('RATE_LIMIT_DELAY', '2'))  # seconds between API calls
 
-# Model Configuration - Set your preferred model
-# o3-deep-research: Best quality with web search, requires Verified Organization ($10-40/1M + $10/1K searches)  
-# o4-mini-deep-research: Cheaper deep research option ($2-8/1M + $10/1K searches)
-# gpt-4o: Good alternative, more accessible ($5-15/1M + $25/1K searches)
-# gpt-4.1: Basic analytical capabilities
-OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'o3-deep-research')  # Can override via .env file
+# AI Provider Configuration
+AI_PROVIDER = os.getenv('AI_PROVIDER', 'openai').lower()  # 'openai' or 'google'
+
+# Model Configuration - Set your preferred model per provider
+# OpenAI Models:
+# - o3-deep-research: Best quality with web search, requires Verified Organization ($10-40/1M + $10/1K searches)  
+# - o4-mini-deep-research: Cheaper deep research option ($2-8/1M + $10/1K searches)
+# - gpt-4o: Good alternative, more accessible ($5-15/1M + $25/1K searches)
+# Google Models:
+# - gemini-2.5-pro: Advanced reasoning with search grounding
+# - gemini-2.5-flash: Fast and cost-effective
 
 # Set up logging
 logging.basicConfig(
@@ -59,24 +68,17 @@ logger = logging.getLogger(__name__)
 
 class PharmacyStateValidator:
     def __init__(self):
-        """Initialize the validator with OpenAI client."""
-        self.setup_openai()
+        """Initialize the validator with the configured AI provider."""
+        self.setup_ai_provider()
         
-    def setup_openai(self):
-        """Set up OpenAI client with API key."""
-        # Load environment variables from .env file
-        load_dotenv()
-        
-        api_key = os.getenv('OPENAI_API_KEY')
-        if not api_key:
-            logger.error("OPENAI_API_KEY not found!")
-            logger.error("Please set it using one of these methods:")
-            logger.error("1. Environment variable: export OPENAI_API_KEY='your-key-here'")
-            logger.error("2. Create .env file with: OPENAI_API_KEY=your-key-here")
+    def setup_ai_provider(self):
+        """Set up AI provider based on configuration."""
+        try:
+            self.ai_provider = get_ai_provider(AI_PROVIDER)
+            logger.info(f"AI provider '{AI_PROVIDER}' initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize AI provider '{AI_PROVIDER}': {str(e)}")
             sys.exit(1)
-        
-        self.client = openai.OpenAI(api_key=api_key)
-        logger.info("OpenAI client initialized successfully")
 
     def load_csv(self, filename: str) -> pd.DataFrame:
         """Load and validate CSV file."""
@@ -98,131 +100,16 @@ class PharmacyStateValidator:
             logger.error(f"Error loading CSV: {str(e)}")
             sys.exit(1)
 
-    def create_validation_prompt(self, pharmacies_batch: List[Dict]) -> str:
-        """Create a prompt for OpenAI to validate pharmacy states of operation."""
-        
-        prompt = """You are a healthcare regulatory expert specializing in pharmacy licensing and operations across U.S. states. 
-
-Your task is to verify if the listed "states of operation" for each mail-order pharmacy are accurate based on current regulatory information, licensing requirements, and known operational status.
-
-CRITICAL: Use web search to find current, authoritative information about each pharmacy's licensing and operational status.
-
-For each pharmacy, search and analyze:
-1. **Current licensing databases**: Search state pharmacy board websites and licensing databases
-2. **Regulatory compliance**: Check for current mail-order pharmacy licenses in claimed states  
-3. **Company websites**: Verify operational scope on official pharmacy websites
-4. **Recent regulatory changes**: Look for any recent licensing updates or restrictions
-5. **Cross-reference sources**: Compare multiple authoritative sources for accuracy
-
-IMPORTANT: Base your analysis on factual, up-to-date regulatory information found through web search, not assumptions or outdated knowledge.
-
-Pharmacies to validate:
-"""
-        
-        for i, pharmacy in enumerate(pharmacies_batch, 1):
-            prompt += f"""
-{i}. Pharmacy: {pharmacy.get('StoreName', 'N/A')}
-   Address: {pharmacy.get('Address1', 'N/A')}, {pharmacy.get('City', 'N/A')}, {pharmacy.get('State', 'N/A')} {pharmacy.get('ZipCode', 'N/A')}
-   Current listed states of operation: {pharmacy.get('Operates in states', 'N/A')}
-   NCPDP ID: {pharmacy.get('NCPDPID', 'N/A')}
-"""
-
-        prompt += """
-
-For each pharmacy, provide your response in this EXACT JSON format:
-{
-  "validations": [
-    {
-      "pharmacy_index": 1,
-      "is_correct": true/false,
-      "corrected_states": "Only provide if different from original - use same format as input",
-      "confidence": "high/medium/low",
-      "reasoning": "Brief explanation of your findings"
-    }
-  ]
-}
-
-Only include "corrected_states" if the original information is incorrect. Use the same format as the input (e.g., "Nationwide", "State1, State2, State3", or "All states except State1").
-"""
-        
-        return prompt
-
-    def validate_batch_with_openai(self, batch: List[Dict]) -> List[Dict]:
-        """Validate a batch of pharmacies using OpenAI o3-deepresearch."""
-        
-        prompt = self.create_validation_prompt(batch)
-        
-        try:
-            logger.info(f"Validating batch of {len(batch)} pharmacies...")
-            
-            response = self.client.chat.completions.create(
-                model=OPENAI_MODEL,
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are a healthcare regulatory expert. Provide accurate, fact-based analysis of pharmacy licensing and operations."
-                    },
-                    {
-                        "role": "user", 
-                        "content": prompt
-                    }
-                ],
-                temperature=0.1,  # Low temperature for consistency
-                max_completion_tokens=4000
-            )
-            
-            # Parse the response
-            response_text = response.choices[0].message.content
-            logger.debug(f"OpenAI response: {response_text}")
-            
-            # Extract JSON from response
-            try:
-                # Try to find JSON in the response
-                start_idx = response_text.find('{')
-                end_idx = response_text.rfind('}') + 1
-                json_str = response_text[start_idx:end_idx]
-                
-                result = json.loads(json_str)
-                validations = result.get('validations', [])
-                
-                logger.info(f"Successfully parsed {len(validations)} validations")
-                return validations
-                
-            except (json.JSONDecodeError, ValueError) as e:
-                logger.error(f"Failed to parse JSON response: {str(e)}")
-                logger.error(f"Response text: {response_text}")
-                
-                # Return default results for this batch
-                return [
-                    {
-                        "pharmacy_index": i + 1,
-                        "is_correct": None,
-                        "corrected_states": "",
-                        "confidence": "error",
-                        "reasoning": "Failed to parse OpenAI response"
-                    } for i in range(len(batch))
-                ]
-                
-        except Exception as e:
-            logger.error(f"OpenAI API error: {str(e)}")
-            
-            # Return default results for this batch
-            return [
-                {
-                    "pharmacy_index": i + 1,
-                    "is_correct": None,
-                    "corrected_states": "",
-                    "confidence": "error",
-                    "reasoning": f"API error: {str(e)}"
-                } for i in range(len(batch))
-            ]
+    def validate_batch_with_ai(self, batch: List[Dict]) -> List[Dict]:
+        """Validate a batch of pharmacies using the configured AI provider."""
+        return self.ai_provider.validate_batch_with_ai(batch)
 
     def process_csv(self, df: pd.DataFrame) -> pd.DataFrame:
         """Process the entire CSV in batches, saving after each successful batch."""
         
         # Add new columns
         df['Initial states of operation correct'] = None
-        df['States of operation by OpenAI deepresearch'] = ""
+        df[f'States of operation by {AI_PROVIDER.upper()} AI'] = ""
         df['Validation confidence'] = ""
         df['Validation reasoning'] = ""
         
@@ -237,8 +124,8 @@ Only include "corrected_states" if the original information is incorrect. Use th
             # Convert batch to list of dictionaries
             batch_pharmacies = batch_df.to_dict('records')
             
-            # Validate with OpenAI
-            validations = self.validate_batch_with_openai(batch_pharmacies)
+            # Validate with AI provider
+            validations = self.validate_batch_with_ai(batch_pharmacies)
             
             # Apply results back to dataframe
             batch_successful = False
@@ -249,7 +136,7 @@ Only include "corrected_states" if the original information is incorrect. Use th
                     
                     if actual_idx < len(df):
                         df.loc[actual_idx, 'Initial states of operation correct'] = validation.get('is_correct')
-                        df.loc[actual_idx, 'States of operation by OpenAI deepresearch'] = validation.get('corrected_states', '')
+                        df.loc[actual_idx, f'States of operation by {AI_PROVIDER.upper()} AI'] = validation.get('corrected_states', '')
                         df.loc[actual_idx, 'Validation confidence'] = validation.get('confidence', '')
                         df.loc[actual_idx, 'Validation reasoning'] = validation.get('reasoning', '')
                         batch_successful = True
@@ -285,7 +172,7 @@ Only include "corrected_states" if the original information is incorrect. Use th
             incorrect_count = len(df[df['Initial states of operation correct'] == False])
             error_count = len(df[df['Initial states of operation correct'].isna()])
             
-            logger.info(f"\nValidation Summary:")
+            logger.info(f"\nValidation Summary (AI Provider: {AI_PROVIDER}):")
             logger.info(f"Total pharmacies: {total_pharmacies}")
             logger.info(f"Correct states of operation: {correct_count}")
             logger.info(f"Incorrect states of operation: {incorrect_count}")
@@ -309,7 +196,11 @@ def main():
     # Check if CSV file exists
     if not os.path.exists(CSV_FILENAME):
         logger.error(f"CSV file '{CSV_FILENAME}' not found!")
-        logger.error("Please ensure the CSV file is in the same directory as this script.")
+        logger.error(f"Please ensure the CSV file exists in the specified location.")
+        logger.error(f"Expected directory: {CSV_DIRECTORY}")
+        logger.error(f"You can configure the CSV location in .env file:")
+        logger.error(f"  CSV_DIRECTORY=your-directory")
+        logger.error(f"  CSV_FILENAME=your-filename.csv")
         sys.exit(1)
     
     # Initialize validator

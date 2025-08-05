@@ -1,7 +1,7 @@
 [project]
 name = "pharmacy-states-validation"
-version = "1.0.0"
-description = "Validates pharmacy states of operation using OpenAI o3-deepresearch API"
+version = "2.0.0"
+description = "Validates pharmacy states of operation using multiple AI providers (OpenAI, Google Gemini) with advanced search capabilities"
 authors = [
     {name = "MEDvidi Team", email = "pavzagor@gmail.com"}
 ]
@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "openai>=1.50.0",
+    "google-genai>=0.3.0",
     "pandas>=2.0.0",
     "tqdm>=4.65.0",
     "python-dotenv>=1.0.0",
